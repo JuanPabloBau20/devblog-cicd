@@ -20,7 +20,7 @@ def view_post(post_id):
     """Vista individual de un post"""
     post = blog_storage.get_post_by_id(post_id)
     if not post:
-        return render_template('404.html'), 500
+        return render_template('404.html'), 404
     return render_template('post.html', post=post, title=f'{post.title} - DevBlog')
 
 
