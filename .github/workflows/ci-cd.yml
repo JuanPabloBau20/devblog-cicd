@@ -3,16 +3,16 @@ name: DevBlog CI/CD Pipeline
 # ¿Cuándo se ejecuta este pipeline?
 on:
   push:
-    branches: [ main, develop ]  # En push a main o develop
+    branches: [ main, develop ]     # Push a main o develop
   pull_request:
-    branches: [ main ]           # En pull requests a main
+    branches: [ main ]              # Pull requests hacia main
 
 # Variables de entorno globales
 env:
   PYTHON_VERSION: '3.11'
   NODE_VERSION: '18'
 
-# Jobs que se ejecutarán
+# Jobs a ejecutar
 jobs:
 
   # ================================
@@ -22,36 +22,44 @@ jobs:
     name: Run Tests
     runs-on: ubuntu-latest
     steps:
-      -name: Checkout code
-      uses: actions/checkout@v4
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-      -name: Set up Python ${{ env.PYTHON_VERSION }}
-      uses: actions/setup-python@v4
-      with:
-        python-version: ${{ env.PYTHON_VERSION }}
+      - name: Set up Python ${{ env.PYTHON_VERSION }}
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
 
-      name: Cache pip dependencies
-      uses: actions/cache@v3
-      with:
+      - name: Cache pip dependencies
+        uses: actions/cache@v3
+        with:
           path: ~/.cache/pip
           key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
           restore-keys: |
             ${{ runner.os }}-pip-
 
-      name: Install dependencies
-      run: |
+      - name: Install dependencies
+        run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
-      name: Run tests with coverage
-      run: |
+      - name: Run tests with coverage
+        run: |
           pytest --cov=app --cov-report=xml --cov-report=term-missing -v
 
-      name: Upload coverage to Codecov
-      uses: codecov/codecov-action@v3
-      with:
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v3
+        with:
           file: ./coverage.xml
           fail_ci_if_error: false
+
+      - name: Upload coverage reports (ACTUALIZADO)
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: coverage-report
+          path: coverage.xml
+          retention-days: 30
 
   # ================================
   # JOB 2: DOCKER BUILD
@@ -96,22 +104,21 @@ jobs:
         uses: actions/setup-python@v4
         with:
           python-version: ${{ env.PYTHON_VERSION }}
+
       - name: Install security tools
         run: |
           pip install safety bandit
 
       - name: Run safety check
         run: |
-          safety check -r requirements.txt --json --output safety-report.json
-          || true echo "Safety check completed"
-      
-    #Análisis de código estático
+          safety check -r requirements.txt --json --output safety-report.json || true
+          echo "Safety check completed"
+
       - name: Run bandit security linter
         run: |
           bandit -r app/ -f json -o bandit-report.json || true
           echo "Bandit scan completed"
 
-    # Subir reportes de seguridad
       - name: Upload security reports
         uses: actions/upload-artifact@v4
         if: always()
@@ -122,7 +129,6 @@ jobs:
             bandit-report.json
           retention-days: 30
 
-      
   # ================================
   # JOB 4: DEPLOY (solo en main)
   # ================================
@@ -142,12 +148,3 @@ jobs:
           echo "Docker build: Success"
           echo "Security scan: Passed"
           echo "Deployment would happen here..."
-
-  # paso 6: Subir reporte de cobertura (ACTUALIZADO)
-    name: Upload coverage reports
-    uses: actions/upload-artifact@v4
-    if: always()
-    with:
-      name: coverage-report
-      path: coverage.xml
-      retention-days: 30
