@@ -33,7 +33,14 @@ WORKDIR /app
 # - Docker usa capas (layers) para optimizar builds
 # - Si solo cambia el código, no necesita reinstalar dependencias
 # - Esto hace los builds mucho más rápidos
+
+#INSTALAR PARA PRODUCCION
+RUN apt-get update && apt-get install -y \
+curl \
+&& rm -rf /var/lib/apt/lists/*
+
 COPY requirements.txt .
+
 # Actualizar pip y instalar dependencias
 # --no-cache-dir: No guarda cache de pip (imagen más pequeña)
 # --upgrade: Asegura que pip esté actualizado
@@ -57,15 +64,27 @@ COPY . .
 RUN adduser --disabled-password --gecos '' appuser && \
     chown -R appuser:appuser /app
 USER appuser
+
+#PARA PRODUCCION
+# Health check
+HEALTHCHECK --interval=30s --timeout=30s --start-period=5s --retries=3 \
+    CMD curl -f http://localhost:$PORT/api/health || exit 1
 # ================================
 # ETAPA 7: CONFIGURACIÓN DE RED
 # ================================
 # Exponer el puerto 5000 (puerto por defecto de Flask)
 # Esto es documentativo - le dice a otros desarrolladores qué puerto usar
 # No abre automáticamente el puerto (eso se hace al ejecutar el contenedor)
-EXPOSE 5000
+EXPOSE $PORT
 # ================================# ETAPA 8: COMANDO DE INICIO
 # ================================
 # Comando que se ejecuta cuando inicia el contenedor
 # Inicia la aplicación Flask
 CMD ["python", "app.py"]
+
+# PYTHONDONTWRITEBYTECODE=1: Evita crear archivos .pyc (optimización)
+ENV PYTHONUNBUFFERED=1
+ENV PYTHONDONTWRITEBYTECODE=1
+#AGREGAR PARA PRODUCCION
+ENV FLASK_ENV=production
+ENV PORT=5000
